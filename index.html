@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Floors Climbed & Descended — 2025</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Cormorant+Garamond:ital,wght@0,300;0,600;1,300&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0c0f14;
+    --surface: #131720;
+    --border: #1e2535;
+    --climbed: #e8c97a;
+    --descended: #6eb5e8;
+    --climbed-glow: rgba(232,201,122,0.18);
+    --descended-glow: rgba(110,181,232,0.18);
+    --text-primary: #e8e4da;
+    --text-muted: #5a6478;
+    --text-dim: #3a4055;
+    --grid: #161c28;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text-primary);
+    font-family: 'Space Mono', monospace;
+    min-height: 100vh;
+    padding: 40px 32px;
+    overflow-x: hidden;
+  }
+
+  /* Subtle noise texture */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.4;
+  }
+
+  .container {
+    max-width: 1100px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 1;
+  }
+
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 48px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .title-block h1 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(28px, 4vw, 48px);
+    font-weight: 300;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    color: var(--text-primary);
+  }
+
+  .title-block h1 em {
+    font-style: italic;
+    color: var(--climbed);
+  }
+
+  .title-block p {
+    margin-top: 6px;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  .legend {
+    display: flex;
+    gap: 24px;
+    align-items: center;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  .legend-swatch {
+    width: 24px;
+    height: 2px;
+    border-radius: 2px;
+  }
+
+  .legend-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    border: 2px solid;
+  }
+
+  /* Stats bar */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    margin-bottom: 32px;
+    overflow: hidden;
+  }
+
+  .stat-cell {
+    background: var(--surface);
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .stat-label {
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  .stat-value {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .stat-value.gold { color: var(--climbed); }
+  .stat-value.blue { color: var(--descended); }
+  .stat-value.neutral { color: var(--text-primary); }
+
+  .stat-sub {
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 0.05em;
+  }
+
+  /* Chart wrapper */
+  .chart-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 24px 20px 16px 20px;
+    margin-bottom: 16px;
+    position: relative;
+  }
+
+  .chart-month-label {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    fill: var(--text-dim);
+    font-family: 'Space Mono', monospace;
+  }
+
+  .axis-label {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    fill: var(--text-muted);
+    font-family: 'Space Mono', monospace;
+  }
+
+  .tick text {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    fill: var(--text-muted);
+    letter-spacing: 0.05em;
+  }
+
+  .tick line, .domain { stroke: var(--border); }
+
+  /* Tooltip */
+  .tooltip {
+    position: absolute;
+    pointer-events: none;
+    background: #0c0f14;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 10px 14px;
+    font-size: 10px;
+    letter-spacing: 0.05em;
+    opacity: 0;
+    transition: opacity 0.15s;
+    z-index: 10;
+    min-width: 160px;
+  }
+
+  .tooltip.visible { opacity: 1; }
+
+  .tooltip-date {
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .tooltip-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    margin-top: 4px;
+  }
+
+  .tooltip-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 6px;
+  }
+
+  .tooltip-val { font-weight: 700; letter-spacing: -0.02em; }
+
+  .delta-row {
+    margin-top: 8px;
+    padding-top: 6px;
+    border-top: 1px solid var(--border);
+    font-size: 9px;
+    color: var(--text-muted);
+  }
+
+  /* Crosshair */
+  .crosshair-line {
+    stroke: var(--border);
+    stroke-width: 1;
+    stroke-dasharray: 3 3;
+    pointer-events: none;
+  }
+
+  /* Trend toggle */
+  .controls {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+
+  .toggle-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    padding: 6px 14px;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: all 0.15s;
+  }
+
+  .toggle-btn:hover { border-color: var(--text-muted); color: var(--text-primary); }
+  .toggle-btn.active { border-color: var(--climbed); color: var(--climbed); }
+
+  footer {
+    margin-top: 20px;
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    display: flex;
+    justify-content: space-between;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div class="title-block">
+      <h1>Floors <em>Climbed</em> & Descended</h1>
+      <p>Weekly stair activity · January – December 2025</p>
+    </div>
+    <div class="legend">
+      <div class="legend-item">
+        <div class="legend-swatch" style="background:var(--climbed);"></div>
+        <div class="legend-dot" style="border-color:var(--climbed);background:var(--climbed);"></div>
+        Climbed
+      </div>
+      <div class="legend-item">
+        <div class="legend-swatch" style="background:var(--descended);"></div>
+        <div class="legend-dot" style="border-color:var(--descended);background:var(--descended);"></div>
+        Descended
+      </div>
+    </div>
+  </header>
+
+  <div class="stats-row" id="stats-row"></div>
+
+  <div class="controls">
+    <button class="toggle-btn active" id="btn-area">Area Fill</button>
+    <button class="toggle-btn" id="btn-trend">4-Week Trend</button>
+    <button class="toggle-btn" id="btn-diff">Difference</button>
+  </div>
+
+  <div class="chart-wrap" id="chart-wrap">
+    <div class="tooltip" id="tooltip"></div>
+  </div>
+
+  <footer>
+    <span>Stair data · 52 weeks</span>
+    <span>Hover to inspect · Click legend to isolate</span>
+  </footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script>
+const raw = `Week,Climbed,Descended
+01/02/2025,347,320
+01/09/2025,191,198
+01/16/2025,125,139
+01/23/2025,180,170
+01/30/2025,161,166
+02/06/2025,207,223
+02/13/2025,173,177
+02/20/2025,113,91
+02/27/2025,76,50
+03/06/2025,286,309
+03/13/2025,150,169
+03/20/2025,83,80
+03/27/2025,56,53
+04/03/2025,51,76
+04/10/2025,53,42
+04/17/2025,74,88
+04/24/2025,85,97
+05/01/2025,106,92
+05/08/2025,165,137
+05/15/2025,145,126
+05/22/2025,172,180
+05/29/2025,72,70
+06/05/2025,92,86
+06/12/2025,64,48
+06/19/2025,80,65
+06/26/2025,69,67
+07/03/2025,153,109
+07/10/2025,76,68
+07/17/2025,88,90
+07/24/2025,70,65
+07/31/2025,158,134
+08/07/2025,111,90
+08/14/2025,95,74
+08/21/2025,126,68
+08/28/2025,84,49
+09/04/2025,70,44
+09/11/2025,89,78
+09/18/2025,153,147
+09/25/2025,127,121
+10/02/2025,294,295
+10/09/2025,261,239
+10/16/2025,72,68
+10/23/2025,93,54
+10/30/2025,49,42
+11/06/2025,87,81
+11/13/2025,90,85
+11/20/2025,108,108
+11/27/2025,284,262
+12/04/2025,119,111
+12/11/2025,133,122
+12/18/2025,352,364
+12/25/2025,271,252`;
+
+const parseDate = d3.timeParse('%m/%d/%Y');
+const fmtDate = d3.timeFormat('%b %d');
+const fmtWeek = d3.timeFormat('Week of %b %d');
+
+const data = d3.csvParse(raw, d => ({
+  week: parseDate(d.Week),
+  climbed: +d.Climbed,
+  descended: +d.Descended,
+  diff: +d.Climbed - +d.Descended
+}));
+
+// Rolling average
+function rollingAvg(arr, key, n = 4) {
+  return arr.map((d, i) => {
+    const slice = arr.slice(Math.max(0, i - n + 1), i + 1);
+    return { week: d.week, value: d3.mean(slice, x => x[key]) };
+  });
+}
+
+// Stats
+const totalClimbed = d3.sum(data, d => d.climbed);
+const totalDescended = d3.sum(data, d => d.descended);
+const maxWeek = data.reduce((a, b) => b.climbed > a.climbed ? b : a);
+const avgClimbed = Math.round(d3.mean(data, d => d.climbed));
+
+document.getElementById('stats-row').innerHTML = `
+  <div class="stat-cell">
+    <div class="stat-label">Total Climbed</div>
+    <div class="stat-value gold">${totalClimbed.toLocaleString()}</div>
+    <div class="stat-sub">flights of stairs</div>
+  </div>
+  <div class="stat-cell">
+    <div class="stat-label">Total Descended</div>
+    <div class="stat-value blue">${totalDescended.toLocaleString()}</div>
+    <div class="stat-sub">flights of stairs</div>
+  </div>
+  <div class="stat-cell">
+    <div class="stat-label">Peak Week</div>
+    <div class="stat-value gold">${maxWeek.climbed}</div>
+    <div class="stat-sub">${fmtDate(maxWeek.week)}</div>
+  </div>
+  <div class="stat-cell">
+    <div class="stat-label">Weekly Avg (Climbed)</div>
+    <div class="stat-value neutral">${avgClimbed}</div>
+    <div class="stat-sub">floors per week</div>
+  </div>
+`;
+
+// Chart
+const margin = { top: 20, right: 30, bottom: 50, left: 52 };
+const wrap = document.getElementById('chart-wrap');
+
+let showArea = true;
+let showTrend = false;
+let showDiff = false;
+
+function draw() {
+  wrap.querySelectorAll('svg').forEach(e => e.remove());
+
+  const W = wrap.clientWidth - 40;
+  const H = Math.max(320, Math.min(460, W * 0.42));
+  const w = W - margin.left - margin.right;
+  const h = H - margin.top - margin.bottom;
+
+  const svg = d3.select('#chart-wrap').append('svg')
+    .attr('width', W).attr('height', H);
+
+  const g = svg.append('g')
+    .attr('transform', `translate(${margin.left},${margin.top})`);
+
+  // Scales
+  const x = d3.scaleTime()
+    .domain(d3.extent(data, d => d.week))
+    .range([0, w]);
+
+  const allVals = showDiff
+    ? data.map(d => d.diff)
+    : [...data.map(d => d.climbed), ...data.map(d => d.descended)];
+  const yMin = showDiff ? Math.min(0, d3.min(allVals)) - 10 : 0;
+  const yMax = d3.max(allVals) * 1.12;
+
+  const y = d3.scaleLinear()
+    .domain([yMin, yMax])
+    .range([h, 0])
+    .nice();
+
+  // Grid
+  g.append('g')
+    .attr('class', 'grid')
+    .call(d3.axisLeft(y)
+      .ticks(6)
+      .tickSize(-w)
+      .tickFormat(''))
+    .call(g => g.select('.domain').remove())
+    .call(g => g.selectAll('.tick line')
+      .attr('stroke', '#161c28')
+      .attr('stroke-dasharray', '2 4'));
+
+  // Zero line for diff mode
+  if (showDiff) {
+    g.append('line')
+      .attr('x1', 0).attr('x2', w)
+      .attr('y1', y(0)).attr('y2', y(0))
+      .attr('stroke', '#2a3045')
+      .attr('stroke-width', 1);
+  }
+
+  // Month bands
+  const months = d3.timeMonths(d3.timeMonth.floor(data[0].week), d3.timeMonth.ceil(data[data.length - 1].week));
+  months.forEach((m, i) => {
+    if (i % 2 === 0) {
+      const x0 = x(m);
+      const x1 = x(d3.timeMonth.offset(m, 1));
+      g.append('rect')
+        .attr('x', x0).attr('y', 0)
+        .attr('width', Math.max(0, x1 - x0)).attr('height', h)
+        .attr('fill', 'rgba(255,255,255,0.012)');
+    }
+  });
+
+  // Month labels
+  months.forEach(m => {
+    g.append('text')
+      .attr('class', 'chart-month-label')
+      .attr('x', x(d3.timeMonth.offset(m, 0.5)) || x(m) + 15)
+      .attr('y', h + 32)
+      .attr('text-anchor', 'middle')
+      .text(d3.timeFormat('%b')(m));
+  });
+
+  // Axes
+  g.append('g')
+    .attr('transform', `translate(0,${h})`)
+    .call(d3.axisBottom(x).ticks(0).tickSize(0))
+    .call(g => g.select('.domain').attr('stroke', '#1e2535'));
+
+  g.append('g')
+    .call(d3.axisLeft(y).ticks(6).tickSize(4))
+    .call(g => g.select('.domain').remove())
+    .call(g => g.selectAll('.tick line').attr('stroke', '#1e2535'));
+
+  // Y axis label
+  g.append('text')
+    .attr('class', 'axis-label')
+    .attr('transform', 'rotate(-90)')
+    .attr('x', -h / 2).attr('y', -42)
+    .attr('text-anchor', 'middle')
+    .text('Floors');
+
+  if (!showDiff) {
+    // Defs for gradients
+    const defs = svg.append('defs');
+
+    ['climbed', 'descended'].forEach((key, ki) => {
+      const color = ki === 0 ? '#e8c97a' : '#6eb5e8';
+      const grd = defs.append('linearGradient')
+        .attr('id', `grad-${key}`)
+        .attr('x1', 0).attr('y1', 0).attr('x2', 0).attr('y2', 1);
+      grd.append('stop').attr('offset', '0%').attr('stop-color', color).attr('stop-opacity', 0.22);
+      grd.append('stop').attr('offset', '100%').attr('stop-color', color).attr('stop-opacity', 0);
+    });
+
+    // Area
+    if (showArea) {
+      ['climbed', 'descended'].forEach((key, ki) => {
+        const color = ki === 0 ? '#e8c97a' : '#6eb5e8';
+        const area = d3.area()
+          .x(d => x(d.week))
+          .y0(y(0))
+          .y1(d => y(d[key]))
+          .curve(d3.curveCatmullRom.alpha(0.5));
+
+        g.append('path')
+          .datum(data)
+          .attr('fill', `url(#grad-${key})`)
+          .attr('d', area)
+          .attr('opacity', 0)
+          .transition().duration(600).delay(ki * 100)
+          .attr('opacity', 1);
+      });
+    }
+
+    // Lines
+    ['climbed', 'descended'].forEach((key, ki) => {
+      const color = ki === 0 ? '#e8c97a' : '#6eb5e8';
+      const line = d3.line()
+        .x(d => x(d.week))
+        .y(d => y(d[key]))
+        .curve(d3.curveCatmullRom.alpha(0.5));
+
+      const path = g.append('path')
+        .datum(data)
+        .attr('fill', 'none')
+        .attr('stroke', color)
+        .attr('stroke-width', 1.8)
+        .attr('d', line);
+
+      // Draw animation
+      const len = path.node().getTotalLength();
+      path.attr('stroke-dasharray', len)
+        .attr('stroke-dashoffset', len)
+        .transition().duration(900).delay(ki * 80).ease(d3.easeCubicInOut)
+        .attr('stroke-dashoffset', 0);
+
+      // Dots for peaks
+      const peaks = data.filter((d, i) => {
+        const prev = data[i - 1];
+        const next = data[i + 1];
+        return (!prev || d[key] >= prev[key]) && (!next || d[key] >= next[key]) && d[key] > 200;
+      });
+
+      g.selectAll(`.peak-dot-${key}`).data(peaks).enter()
+        .append('circle')
+        .attr('class', `peak-dot-${key}`)
+        .attr('cx', d => x(d.week))
+        .attr('cy', d => y(d[key]))
+        .attr('r', 3)
+        .attr('fill', color)
+        .attr('stroke', '#0c0f14')
+        .attr('stroke-width', 1.5)
+        .attr('opacity', 0)
+        .transition().delay(700 + ki * 80).duration(300)
+        .attr('opacity', 1);
+    });
+
+    // Rolling trend lines
+    if (showTrend) {
+      ['climbed', 'descended'].forEach((key, ki) => {
+        const color = ki === 0 ? '#e8c97a' : '#6eb5e8';
+        const trendData = rollingAvg(data, key, 4);
+        const tLine = d3.line()
+          .x(d => x(d.week))
+          .y(d => y(d.value))
+          .curve(d3.curveBasis);
+
+        g.append('path')
+          .datum(trendData)
+          .attr('fill', 'none')
+          .attr('stroke', color)
+          .attr('stroke-width', 2.5)
+          .attr('stroke-dasharray', '5 3')
+          .attr('opacity', 0.7)
+          .attr('d', tLine);
+      });
+    }
+
+  } else {
+    // Difference bars
+    const defs = svg.append('defs');
+    const grdPos = defs.append('linearGradient').attr('id', 'grad-pos').attr('x1',0).attr('y1',0).attr('x2',0).attr('y2',1);
+    grdPos.append('stop').attr('offset','0%').attr('stop-color','#e8c97a').attr('stop-opacity',0.7);
+    grdPos.append('stop').attr('offset','100%').attr('stop-color','#e8c97a').attr('stop-opacity',0.2);
+    const grdNeg = defs.append('linearGradient').attr('id', 'grad-neg').attr('x1',0).attr('y1',0).attr('x2',0).attr('y2',1);
+    grdNeg.append('stop').attr('offset','0%').attr('stop-color','#6eb5e8').attr('stop-opacity',0.2);
+    grdNeg.append('stop').attr('offset','100%').attr('stop-color','#6eb5e8').attr('stop-opacity',0.7);
+
+    const barW = Math.max(2, w / data.length - 2);
+    g.selectAll('.bar').data(data).enter().append('rect')
+      .attr('class', 'bar')
+      .attr('x', d => x(d.week) - barW / 2)
+      .attr('y', d => d.diff >= 0 ? y(d.diff) : y(0))
+      .attr('width', barW)
+      .attr('height', d => Math.abs(y(d.diff) - y(0)))
+      .attr('fill', d => d.diff >= 0 ? 'url(#grad-pos)' : 'url(#grad-neg)')
+      .attr('rx', 1)
+      .attr('opacity', 0)
+      .transition().duration(500).delay((_, i) => i * 8)
+      .attr('opacity', 1);
+  }
+
+  // Crosshair + interaction overlay
+  const crossV = g.append('line').attr('class', 'crosshair-line')
+    .attr('y1', 0).attr('y2', h).attr('opacity', 0);
+
+  const tooltip = document.getElementById('tooltip');
+
+  const overlay = g.append('rect')
+    .attr('width', w).attr('height', h)
+    .attr('fill', 'none')
+    .attr('pointer-events', 'all');
+
+  const bisect = d3.bisector(d => d.week).left;
+
+  overlay.on('mousemove', function(event) {
+    const [mx] = d3.pointer(event);
+    const x0 = x.invert(mx);
+    const i = bisect(data, x0, 1);
+    const d0 = data[i - 1];
+    const d1 = data[i] || d0;
+    const d = x0 - d0.week < d1.week - x0 ? d0 : d1;
+
+    crossV.attr('x1', x(d.week)).attr('x2', x(d.week)).attr('opacity', 1);
+
+    const delta = d.climbed - d.descended;
+    const sign = delta >= 0 ? '+' : '';
+    tooltip.innerHTML = `
+      <div class="tooltip-date">${fmtWeek(d.week)}</div>
+      <div class="tooltip-row">
+        <span><span class="tooltip-dot" style="background:#e8c97a"></span>Climbed</span>
+        <span class="tooltip-val" style="color:#e8c97a">${d.climbed}</span>
+      </div>
+      <div class="tooltip-row">
+        <span><span class="tooltip-dot" style="background:#6eb5e8"></span>Descended</span>
+        <span class="tooltip-val" style="color:#6eb5e8">${d.descended}</span>
+      </div>
+      <div class="delta-row">Net ${sign}${delta} floors</div>
+    `;
+    tooltip.classList.add('visible');
+
+    // Position tooltip
+    const wrapRect = wrap.getBoundingClientRect();
+    const svgRect = svg.node().getBoundingClientRect();
+    const tipX = svgRect.left - wrapRect.left + margin.left + x(d.week);
+    const tipY = svgRect.top - wrapRect.top + margin.top + 20;
+    tooltip.style.left = (tipX + 14) + 'px';
+    tooltip.style.top = tipY + 'px';
+    if (tipX + 14 + 180 > wrapRect.width) {
+      tooltip.style.left = (tipX - 170) + 'px';
+    }
+  })
+  .on('mouseleave', () => {
+    crossV.attr('opacity', 0);
+    tooltip.classList.remove('visible');
+  });
+}
+
+// Controls
+const btnArea = document.getElementById('btn-area');
+const btnTrend = document.getElementById('btn-trend');
+const btnDiff = document.getElementById('btn-diff');
+
+btnArea.addEventListener('click', () => {
+  showArea = !showArea;
+  btnArea.classList.toggle('active', showArea);
+  draw();
+});
+btnTrend.addEventListener('click', () => {
+  showTrend = !showTrend;
+  btnTrend.classList.toggle('active', showTrend);
+  draw();
+});
+btnDiff.addEventListener('click', () => {
+  showDiff = !showDiff;
+  btnDiff.classList.toggle('active', showDiff);
+  if (showDiff) { showArea = false; btnArea.classList.remove('active'); }
+  draw();
+});
+
+draw();
+window.addEventListener('resize', draw);
+</script>
+</body>
+</html>
